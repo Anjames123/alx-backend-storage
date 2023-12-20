@@ -1,59 +1,35 @@
 #!/usr/bin/env python3
-"""
-This module contains a function that returns the HTML content of a particular
-URL and stores it in a Redis cache
-"""
+"""Advanced task for Redis"""
 import redis
-import requests
-from typing import Optional, Callable
-from functools import wraps
 
 
-def count_url_calls(fn: Callable) -> Callable:
-    """
-    Wrapper function that counts how many times a URL is called
-
-    Args:
-        fn (Callable): function to wrap
-
-    Returns:
-        Callable: wrapped function
-    """
-    @wraps(fn)
-    def increment_url_count(*args, **kwargs):
-        """
-        Increment calls of method
-        """
-        r: redis.Redis = redis.Redis()
-        url: str = ''
-        if args:
-            url = args[0]
-        if kwargs:
-            url = kwargs["url"] if "url" in kwargs else url
-        r.incr("count:{}".format(url))
-        return fn(*args, **kwargs)
-    return increment_url_count
-
-
-@count_url_calls
 def get_page(url: str) -> str:
-    """
-    Returns the HTML content of the URL
+    """get_page"""
+    key = f"count:{url}"
+    red = redis.Redis()
+    red.incr(key)
+    return red.get(url)
 
-    Args:
-        url (str): URL to request
 
-    Returns:
-        str: HTML content of the URL
-    """
-    r: redis.Redis = redis.Redis()
+def get_status(status: int) -> str:
+    """get_status"""
+    key = f"status:{status}"
+    red = redis.Redis()
+    red.incr(key)
+    return red.get(status)
 
-    page_cache: Optional[bytes] = r.get(url)
-    html_content: Optional[str] = ''
-    if page_cache:
-        html_content = page_cache.decode('utf-8')
-    else:
-        html_content = requests.get(url).text
-        r.setex(url, 10, html_content)
 
-    return html_content
+def get_stats() -> str:
+    """get_stats"""
+    red = redis.Redis()
+    keys = red.keys("status:*")
+    keys.sort()
+    total = 0
+    stats = []
+    for key in keys:
+        status = key.decode("utf-8").split(":")[1]
+        count = red.get(key).decode("utf-8")
+        total += int(count)
+        stats.append(f"{status}: {count}")
+    stats.append(f"total: {total}")
+    return "\n".join(stats)
